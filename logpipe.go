@@ -72,6 +72,9 @@ func main() {
 		fmt.Println(text)
 		logger.Log(logging.Entry{Payload: text})
 	}
+	if err := scanner.Err(); err != nil {
+		log.Fatalf("Failed to scan input: %v", err)
+	}
 
 	// Closes the client and flushes the buffer to the Stackdriver Logging
 	// service.
