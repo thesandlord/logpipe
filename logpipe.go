@@ -61,12 +61,15 @@ func main() {
 
 	// Read from Stdin and log it to Stdout and Stackdriver
 	lines := make(chan string)
-	s := bufio.NewScanner(io.TeeReader(os.Stdin, os.Stdout))
 	go func() {
-		defer close(lines)
+		s := bufio.NewScanner(io.TeeReader(os.Stdin, os.Stdout))
 		for s.Scan() {
 			lines <- s.Text()
 		}
+		if err := s.Err(); err != nil {
+			errc <- fmt.Errorf("could not read from std in: %v", err)
+		}
+		close(lines)
 	}()
 
 	signals := make(chan os.Signal)
@@ -93,10 +96,6 @@ mainLoop:
 	// service.
 	if err := client.Close(); err != nil {
 		log.Fatalf("Failed to close client: %v", err)
-	}
-
-	if err := s.Err(); err != nil {
-		log.Fatalf("Failed to scan input: %v", err)
 	}
 
 	fmt.Fprintln(os.Stderr, "Finished logging")
