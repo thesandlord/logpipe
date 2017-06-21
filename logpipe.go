@@ -20,6 +20,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/signal"
 
 	flags "github.com/jessevdk/go-flags"
 
@@ -52,14 +53,40 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}
+	errc := make(chan error)
+	client.OnError = func(err error) { errc <- err }
 
 	// Selects the log to write to.
 	logger := client.Logger(opts.LogName)
 
 	// Read from Stdin and log it to Stdout and Stackdriver
+	lines := make(chan string)
 	s := bufio.NewScanner(io.TeeReader(os.Stdin, os.Stdout))
-	for s.Scan() {
-		logger.Log(logging.Entry{Payload: s.Text()})
+	go func() {
+		defer close(lines)
+		for s.Scan() {
+			lines <- s.Text()
+		}
+	}()
+
+	signals := make(chan os.Signal)
+	signal.Notify(signals, os.Interrupt)
+
+mainLoop:
+	for {
+		select {
+		case line, ok := <-lines:
+			if !ok {
+				break mainLoop
+			}
+			logger.Log(logging.Entry{Payload: line})
+		case err := <-errc:
+			log.Printf("error received: %v", err)
+			break mainLoop
+		case <-signals:
+			fmt.Fprintln(os.Stderr, "received interrupt: exiting program")
+			break mainLoop
+		}
 	}
 
 	// Closes the client and flushes the buffer to the Stackdriver Logging
@@ -72,5 +99,5 @@ func main() {
 		log.Fatalf("Failed to scan input: %v", err)
 	}
 
-	log.Println("Finished logging")
+	fmt.Fprintln(os.Stderr, "Finished logging")
 }
