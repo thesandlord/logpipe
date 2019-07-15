@@ -9,6 +9,10 @@ However, raw Compute Engine does not. Other cloud VMs also do not. You can insta
 If you want a simple way to stream logs from the Stdout of any program to Stackdriver Logging, this is for you!
 
 # Install
+You can download a pre-compiled binary for your system [here](https://github.com/thesandlord/logpipe/releases).
+
+Otherwise:
+
     go get -u github.com/thesandlord/logpipe
 # Setup
 
