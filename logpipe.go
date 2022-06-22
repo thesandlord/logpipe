@@ -16,6 +16,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -32,6 +33,7 @@ func main() {
 	var opts struct {
 		ProjectID string `short:"p" long:"project" description:"Google Cloud Platform Project ID" required:"true"`
 		LogName   string `short:"l" long:"logname" description:"The name of the log to write to" default:"default"`
+		Json      bool   `short:"j" long:"json" description:"Attempt to parse as JSON"`
 	}
 	_, err := flags.Parse(&opts)
 	if err != nil {
@@ -88,7 +90,17 @@ loop:
 			if !ok {
 				break loop
 			}
-			logger.Log(logging.Entry{Payload: line})
+			if opts.Json {
+				var payload json.RawMessage
+				err := json.Unmarshal([]byte(line), &payload)
+				if err != nil {
+					logger.Log(logging.Entry{Payload: line})
+				} else {
+					logger.Log(logging.Entry{Payload: payload})
+				}
+			} else {
+				logger.Log(logging.Entry{Payload: line})
+			}
 		case s := <-signals:
 			fmt.Fprintf(os.Stderr, "Terminating program after receiving signal: %v\n", s)
 			break loop
